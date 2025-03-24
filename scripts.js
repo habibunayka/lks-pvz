@@ -8,13 +8,16 @@ let close = document.querySelector(".close");
 let levels = document.querySelector('select[name="level"]');
 let img = document.querySelector("img");
 let player = document.querySelector(".player");
+let main = document.querySelector(".main");
 let grass = document.querySelectorAll(".grass");
+let mower = document.querySelectorAll(".mower");
 let garden = document.querySelector(".garden");
 let gardenRow = document.querySelectorAll(".garden-row");
 let sun = document.querySelector(".sun");
 let score = document.querySelector(".score");
 let time = document.querySelector(".time");
 let historyCon = document.querySelector(".history-con");
+let sortSelect = document.querySelector("#sort");
 
 // let zombie = document.querySelector(".zombie");
 // let pea = document.querySelector(".pea");
@@ -27,13 +30,14 @@ let shovel = document.querySelector(".shovel");
 
 let timeVal = 300;
 let point = 0;
-let money = 1000;
+let money = 100;
 let selected = "";
 let level = "";
 let username;
+let over = false;
 
-let zombieInterval;
 let peaInterval;
+let timeInterval;
 let spawn;
 
 play.addEventListener("click", (e) => {
@@ -52,7 +56,7 @@ play.addEventListener("click", (e) => {
 function start() {
     let min = 4;
     let sec = 59;
-    let timeInterval = setInterval(() => {
+    timeInterval = setInterval(() => {
         time.textContent = `Time : ${String(min).padStart(2, "0")}:${String(
             sec
         ).padStart(2, "0")}`;
@@ -77,17 +81,50 @@ function start() {
 
     showLb();
     setTimeout(() => {
+        if (over) return;
         spawn = setInterval(() => {
             for (let index = 0; index < zombieCount; index++) {
                 spawnZombie();
             }
         }, 5000);
-    }, 0);
-}
+    }, 3000);
 
+    let gameOverInterval = setInterval(() => {
+        let zombie = document.querySelectorAll(".zombie");
+        zombie.forEach((z) => {
+            let rectZ = z.getBoundingClientRect();
+            let rectM = main.getBoundingClientRect();
+
+            if (rectZ.left < rectM.left) {
+                let gameOvers = document.querySelector(".game-over");
+                over = true;
+                gameOvers.style.display = "flex";
+                clearInterval(timeInterval);
+                clearInterval(zombie.zombieInterval);
+                gardenRow.forEach((gr) => {
+                    let grs = gr.querySelector("img");
+                    clearInterval(gr.plantInterval);
+                    clearInterval(gr.delayInterval);
+                    clearInterval(gr.shootInterval);
+                    zombie.forEach((z) => {
+                        clearInterval(z.zombieInterval);
+                        clearInterval(z.damageInterval);
+                        clearInterval(grs.shootInterval);
+                    });
+                    mower.forEach((m) => {
+                        clearInterval(m.mowerInterval);
+                    });
+                    clearInterval(gameOverInterval);
+                });
+                savePoint();
+                showLb();
+            }
+        });
+    });
+}
 function savePoint() {
     let lb = JSON.parse(localStorage.getItem("lb")) || [];
-    lb.push({ name: username, point: point, level: level });
+    lb.push({ name: username, point: point, level: level, time: Date.now() });
     localStorage.setItem("lb", JSON.stringify(lb));
 }
 
@@ -95,9 +132,9 @@ function showLb(sort = "score") {
     let lb = JSON.parse(localStorage.getItem("lb")) || [];
 
     if (sort == "score") {
-        lb.sort((a, b) => b.score - a.score);
+        lb.sort((a, b) => b.point - a.point);
     } else {
-        lb.sort((a, b) => a.time - b.time);
+        lb.sort((a, b) => b.time - a.time);
     }
 
     historyCon.innerHTML = "";
@@ -118,8 +155,8 @@ function showLb(sort = "score") {
 }
 
 function spawnZombie() {
+    if (over) return;
     let health = 100;
-    let damageInterval;
     let zombie = document.createElement("img");
     zombie.frameZombie = 0;
     zombie.xZombie = 0;
@@ -137,13 +174,13 @@ function spawnZombie() {
     zombie.style.left = x + "px";
     zombie.style.top = y + "px";
 
-    let zombieInterval = setInterval(
+    zombie.zombieInterval = setInterval(
         () => {
             zombie.src = `./Sprites/Zombie/frame_${String(
                 zombie.frameZombie
             ).padStart(2, "0")}_delay-0.05s.gif`;
 
-            zombie.xZombie += 0.8;
+            zombie.xZombie += 1;
             zombie.style.left = x - zombie.xZombie + "px";
 
             zombie.frameZombie = (zombie.frameZombie + 1) % 33;
@@ -151,9 +188,7 @@ function spawnZombie() {
         zombie.status == "none" ? 50 : 200
     );
 
-    
-
-    damageInterval = setInterval(() => {
+    zombie.damageInterval = setInterval(() => {
         let pea = document.querySelectorAll(".pea");
         let icepea = document.querySelectorAll(".icepea");
 
@@ -171,12 +206,13 @@ function spawnZombie() {
                 health -= 20;
 
                 if (health <= 0) {
-                    clearInterval(damageInterval);
-                    clearInterval(zombieInterval);
+                    clearInterval(zombie.damageInterval);
+                    clearInterval(zombie.zombieInterval);
                     point += 100;
                     score.textContent = `Score : ${point}`;
 
                     zombie.remove();
+                    clearInterval(zombie.eatInterval);
                 }
             }
         });
@@ -186,19 +222,19 @@ function spawnZombie() {
             let rectZ = zombie.getBoundingClientRect();
 
             if (
-                rectI.right > rectZ.left + 20 &&
-                rectI.left < rectZ.right &&
-                rectI.bottom > rectZ.top &&
-                rectI.top < rectZ.bottom
+                rectZ.right > rectI.left + 20 &&
+                rectZ.left < rectI.right &&
+                rectZ.bottom > rectI.top &&
+                rectZ.top < rectI.bottom
             ) {
                 i.remove();
                 health -= 20;
 
                 zombie.style.filter = "hue-rotate(180deg) brightness(0.8)";
-                clearInterval(zombieInterval);
+                clearInterval(zombie.zombieInterval);
 
                 zombie.status = "slow";
-                zombieInterval = setInterval(() => {
+                zombie.zombieInterval = setInterval(() => {
                     zombie.src = `./Sprites/Zombie/frame_${String(
                         zombie.frameZombie
                     ).padStart(2, "0")}_delay-0.05s.gif`;
@@ -211,14 +247,14 @@ function spawnZombie() {
 
                 setTimeout(() => {
                     if (health > 0) {
-                        clearInterval(zombieInterval);
+                        clearInterval(zombie.zombieInterval);
                         zombie.status = "none";
-                        zombieInterval = setInterval(() => {
+                        zombie.zombieInterval = setInterval(() => {
                             zombie.src = `./Sprites/Zombie/frame_${String(
                                 zombie.frameZombie
                             ).padStart(2, "0")}_delay-0.05s.gif`;
 
-                            zombie.xZombie += 0.8;
+                            zombie.xZombie += 1;
                             zombie.style.left = x - zombie.xZombie + "px";
 
                             zombie.frameZombie = (zombie.frameZombie + 1) % 33;
@@ -229,56 +265,118 @@ function spawnZombie() {
                 }, 5000);
 
                 if (health <= 0) {
-                    clearInterval(zombieInterval);
-                    clearInterval(damageInterval);
+                    clearInterval(zombie.zombieInterval);
+                    clearInterval(zombie.damageInterval);
                     point += 100;
                     score.textContent = `Score : ${point}`;
                     zombie.remove();
+                    clearInterval(zombie.eatInterval);
                 }
             }
         });
     }, 16);
 
-    // Ini Check Collision nya, apakah sudah benar kak?
+    mower.forEach((m) => {
+        if (!m.dataset.moving) {
+            m.dataset.moving = "false";
+        }
+        let checkMower = setInterval(() => {
+            let rectM = m.getBoundingClientRect();
+            let rectZ = zombie.getBoundingClientRect();
 
-    // gardenRow.forEach((gr) => {
-    //     let checkCollision = setInterval(() => {
-    //         let grs = gr.querySelector("img");
-    //         if (!grs) return;
+            if (
+                rectZ.right > rectM.left &&
+                rectZ.left < rectM.right &&
+                rectZ.bottom > rectM.top &&
+                rectZ.top + 100 < rectM.bottom
+            ) {
+                let x = 0;
 
-    //         let rectP = grs.getBoundingClientRect();
-    //         let rectZ = zombie.getBoundingClientRect();
+                m.src = `./Sprites/General/lawnmowerActivated.gif`;
 
-    //         if (
-    //             rectP.right > rectZ.left &&
-    //             rectP.left < rectZ.right &&
-    //             rectP.bottom > rectZ.top &&
-    //             rectP.top < rectZ.bottom
-    //         ) {
-    //             console.log("ini kena");
+                if (m.dataset.moving == "false") {
+                    m.dataset.moving = "true";
+                    m.mowerInterval = setInterval(() => {
+                        m.style.left = x + "px";
+                        x += 3;
+                        if (x > 1500) {
+                            clearInterval(checkMower);
+                        }
+                    }, 20);
+                }
 
-    //             clearInterval(checkCollision);
-    //             clearInterval(zombieInterval);
+                clearInterval(zombie.damageInterval);
+                clearInterval(zombie.zombieInterval);
+                zombie.remove();
+                clearInterval(zombie.eatInterval);
+            }
+        }, 16);
+    });
 
-    //             zombieInterval = setInterval(
-    //                 () => {
-    //                     zombie.src = `./Sprites/Zombie/frame_${String(
-    //                         zombie.frameZombie
-    //                     ).padStart(2, "0")}_delay-0.05s.gif`;
-    //                     zombie.style.left = x + "px";
-            
-    //                     zombie.frameZombie = (zombie.frameZombie + 1) % 33;
-    //                 },
-    //                 zombie.status == "none" ? 50 : 200
-    //             );
-                
-                
-    //         }
-    //     }, 16);
-    // });
+    gardenRow.forEach((gr) => {
+        let checkCollision = setInterval(() => {
+            let grs = gr.querySelector('img[data-has-plant="true"]');
+            if (!grs) return;
+
+            let rectP = grs.getBoundingClientRect();
+            let rectZ = zombie.getBoundingClientRect();
+
+            if (
+                rectP.right - 30 > rectZ.left &&
+                rectP.left < rectZ.right &&
+                rectP.bottom > rectZ.top + 100 &&
+                rectP.top < rectZ.bottom
+            ) {
+                console.log("ini kena");
+
+                clearInterval(checkCollision);
+                clearInterval(zombie.zombieInterval);
+
+                zombie.zombieInterval = setInterval(
+                    () => {
+                        zombie.src = `./Sprites/Zombie/frame_${String(
+                            zombie.frameZombie
+                        ).padStart(2, "0")}_delay-0.05s.gif`;
+                        zombie.style.left = x - zombie.xZombie + "px";
+
+                        zombie.frameZombie = (zombie.frameZombie + 1) % 33;
+                    },
+                    zombie.status == "none" ? 50 : 200
+                );
+
+                zombie.eatInterval = setInterval(() => {
+                    console.log("dimakan");
+                    grs.health -= 20;
+                    if (grs.health <= 0) {
+                        clearInterval(gr.plantInterval);
+                        clearInterval(gr.delayInterval);
+                        clearInterval(zombie.eatInterval);
+                        grs.dataset.hasPlant = "false";
+                        grs.src = `./Sprites/General/Grass.bmp`;
+                        clearInterval(zombie.zombieInterval);
+                        zombie.zombieInterval = setInterval(
+                            () => {
+                                zombie.src = `./Sprites/Zombie/frame_${String(
+                                    zombie.frameZombie
+                                ).padStart(2, "0")}_delay-0.05s.gif`;
+
+                                zombie.xZombie += 1;
+                                zombie.style.left = x - zombie.xZombie + "px";
+
+                                zombie.frameZombie =
+                                    (zombie.frameZombie + 1) % 33;
+                            },
+                            zombie.status == "none" ? 50 : 200
+                        );
+                    }
+                }, 1000);
+            }
+        }, 16);
+    });
 }
 
 peashooter.addEventListener("click", (e) => {
+    if (over) return;
     if (selected == "PeaShooter") {
         selected = "";
         return;
@@ -317,6 +415,8 @@ gardenRow.forEach((gr) => {
     let grs = gr.querySelector("img");
     grs.dataset.hasPlant = "false";
     grs.addEventListener("mouseover", () => {
+        if (over) return;
+
         if (selected == "shovel") {
             let div = document.createElement("div");
             div.classList.add("red");
@@ -337,6 +437,8 @@ gardenRow.forEach((gr) => {
         }
     });
     gr.addEventListener("click", () => {
+        if (over) return;
+
         if (selected == "shovel") {
             console.log("Menghapus tanaman...");
 
@@ -405,8 +507,6 @@ gardenRow.forEach((gr) => {
         grs.setAttribute("data-has-plant", "true");
         sun.innerHTML = money;
 
-        let health = 0;
-
         if (plant == "PeaShooter" || plant == "IcePea") {
             gr.delayInterval = setInterval(() => {
                 let zombies = document.querySelectorAll(".zombie");
@@ -422,7 +522,7 @@ gardenRow.forEach((gr) => {
 
                 if (zombieDetected) {
                     let img = document.createElement("img");
-                    let shootInterval;
+                    img.shootInterval;
                     img.src =
                         plant == "PeaShooter"
                             ? "./Sprites/General/Pea.png"
@@ -432,11 +532,11 @@ gardenRow.forEach((gr) => {
                     let x = 90;
 
                     gr.appendChild(img);
-                    shootInterval = setInterval(() => {
+                    img.shootInterval = setInterval(() => {
                         img.style.left = `${x}px`;
                         x += 5;
                         if (x >= 1000) {
-                            clearInterval(shootInterval);
+                            clearInterval(img.shootInterval);
                             if (gr.contains(img)) {
                                 gr.removeChild(img);
                             }
@@ -447,7 +547,7 @@ gardenRow.forEach((gr) => {
         } else if (plant == "SunFlower") {
             gr.delayInterval = setInterval(() => {
                 let img = document.createElement("img");
-                let shootInterval;
+                img.shootInterval;
                 img.src = "./Sprites/General/Sun.png";
                 img.classList.add("sun");
                 let x = Math.random() * 80 + 0;
@@ -462,11 +562,11 @@ gardenRow.forEach((gr) => {
                 });
 
                 gr.appendChild(img);
-                shootInterval = setInterval(() => {
+                img.shootInterval = setInterval(() => {
                     img.style.top = `${y}px`;
                     y += 1;
                     if (y == 50) {
-                        clearInterval(shootInterval);
+                        clearInterval(img.shootInterval);
                     }
                 }, 16);
                 setTimeout(() => {
@@ -474,54 +574,11 @@ gardenRow.forEach((gr) => {
                 }, 12000);
             }, 10000);
         }
-
-        // gr.damageInterval = setInterval(() => {
-        //     let zombies = document.querySelectorAll(".zombie");
-
-        //     zombies.forEach((z)=>{
-        //         let rectZ = z.getBoundingClientRect();
-        //         let rectP = gr.getBoundingClientRect();
-
-        //         if (
-        //             rectZ.right > rectP.left &&
-        //             rectP.right > rectZ.left &&
-        //             rectP.bottom > rectZ.top &&
-        //             rectZ.bottom > rectP.top
-        //         ) {
-        //             console.log("test")
-        //             z.zombieInterval = setInterval(
-        //                 () => {
-        //                     z.src = `./Sprites/Zombie/frame_${String(
-        //                         zombie.frameZombie
-        //                     ).padStart(2, "0")}_delay-0.05s.gif`;
-
-        //                     z.xZombie += 0;
-        //                     z.style.left = x - z.xZombie + "px";
-
-        //                     z.frameZombie = (z.frameZombie + 1) % 33;
-        //                 },
-        //                 200
-        //             );
-        //         } else {
-        //             z.zombieInterval = setInterval(
-        //                 () => {
-        //                     z.src = `./Sprites/Zombie/frame_${String(
-        //                         z.frameZombie
-        //                     ).padStart(2, "0")}_delay-0.05s.gif`;
-
-        //                     z.xZombie += 0.8;
-        //                     z.style.left = x - z.xZombie + "px";
-
-        //                     z.frameZombie = (z.frameZombie + 1) % 33;
-        //                 },
-        //                 200
-        //             );
-        //         }
-        //     })
-        // }, 16);
     });
 
     gr.addEventListener("mouseleave", () => {
+        if (over) return;
+
         if (selected == "shovel") {
             grs.style.opacity = 1;
             let redOverlay = gr.querySelector(".red");
@@ -560,3 +617,7 @@ levels.addEventListener("change", () => {
     play.classList.toggle("disabled", !user.value || !level);
     play.disabled = !user.value || !level;
 });
+
+sortSelect.addEventListener("change", ()=> {
+    showLb(sortSelect.value);
+})

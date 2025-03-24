@@ -120,15 +120,32 @@ body {
         position: relative;
         overflow: hidden;
 
-        .mower {
+        .game-over {
+            position: absolute;
+            inset: 0;
+            height: 100%;
+            z-index: 100;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            background-color: #33333360;
+
+            h1 {
+                color: white;
+                font-size: 3em;
+            }
+        }
+
+        .mower-col {
             position: absolute;
             left: 8px;
             top: 157px;
             display: flex;
             justify-content: start;
             flex-direction: column;
+            z-index: 99;
 
-            img {
+            .mower-row img {
                 width: 105px;
                 position: relative;
             }
@@ -139,6 +156,7 @@ body {
             left: 118px;
             top: 153px;
             display: flex;
+            z-index: 1;
             justify-content: start;
             flex-direction: column;
 
