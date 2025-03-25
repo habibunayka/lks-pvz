@@ -18,6 +18,7 @@ let score = document.querySelector(".score");
 let time = document.querySelector(".time");
 let historyCon = document.querySelector(".history-con");
 let sortSelect = document.querySelector("#sort");
+let gameOvers = document.querySelector(".game-over");
 
 // let zombie = document.querySelector(".zombie");
 // let pea = document.querySelector(".pea");
@@ -61,15 +62,15 @@ function start() {
             sec
         ).padStart(2, "0")}`;
 
+        if (min == 0 && sec == 0) {
+            gameOver();
+        }
+
         if (sec == 0) {
             sec = 59;
             min--;
         } else {
             sec--;
-        }
-
-        if (min == 0 && sec == 0) {
-            savePoint();
         }
     }, 1000);
     score.textContent = `Score : ${point}`;
@@ -96,31 +97,33 @@ function start() {
             let rectM = main.getBoundingClientRect();
 
             if (rectZ.left < rectM.left) {
-                let gameOvers = document.querySelector(".game-over");
-                over = true;
-                gameOvers.style.display = "flex";
-                clearInterval(timeInterval);
-                clearInterval(zombie.zombieInterval);
-                gardenRow.forEach((gr) => {
-                    let grs = gr.querySelector("img");
-                    clearInterval(gr.plantInterval);
-                    clearInterval(gr.delayInterval);
-                    clearInterval(gr.shootInterval);
-                    zombie.forEach((z) => {
-                        clearInterval(z.zombieInterval);
-                        clearInterval(z.damageInterval);
-                        clearInterval(grs.shootInterval);
-                    });
-                    mower.forEach((m) => {
-                        clearInterval(m.mowerInterval);
-                    });
-                    clearInterval(gameOverInterval);
-                });
-                savePoint();
-                showLb();
+                gameOver();
             }
         });
     });
+}
+function gameOver() {
+    over = true;
+    gameOvers.style.display = "flex";
+    clearInterval(timeInterval);
+    clearInterval(zombie.zombieInterval);
+    gardenRow.forEach((gr) => {
+        let grs = gr.querySelector("img");
+        clearInterval(gr.plantInterval);
+        clearInterval(gr.delayInterval);
+        clearInterval(gr.shootInterval);
+        zombie.forEach((z) => {
+            clearInterval(z.zombieInterval);
+            clearInterval(z.damageInterval);
+            clearInterval(grs.shootInterval);
+        });
+        mower.forEach((m) => {
+            clearInterval(m.mowerInterval);
+        });
+        clearInterval(gameOverInterval);
+    });
+    savePoint();
+    showLb();
 }
 function savePoint() {
     let lb = JSON.parse(localStorage.getItem("lb")) || [];
@@ -618,6 +621,6 @@ levels.addEventListener("change", () => {
     play.disabled = !user.value || !level;
 });
 
-sortSelect.addEventListener("change", ()=> {
+sortSelect.addEventListener("change", () => {
     showLb(sortSelect.value);
-})
+});
